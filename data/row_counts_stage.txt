@@ -1,0 +1,4 @@
+t1_c13_building_falls: 7920756
+t1_c13_matches: 220021
+t1_c13_players: 2200210
+t1_c13_tower_hits: 13603492

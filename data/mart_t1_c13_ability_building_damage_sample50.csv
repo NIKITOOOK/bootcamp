@@ -1,0 +1,51 @@
+hero_id,hero_name,source_type,source_group,source_id,source_name,ability_level,building_type,time_window,match_phase,is_talent,matches,hits,damage,damage_hp_units,dmg_per_hit,dmg_per_match,exposure_sec,dmg_per_exposure_min,ratio_to_t3,share_of_hero_damage
+1,Anti-Mage,ability,ability,ability:5107,Toss,0,T1,00-10,0-15,0,1,1,30,0.017,30.0,30.0,64137307,0.0,,0.0
+1,Anti-Mage,ability,ability,ability:5107,Toss,0,T1,10-15,0-15,0,1,1,120,0.067,120.0,120.0,25861728,0.0003,,0.0
+1,Anti-Mage,ability,ability,ability:5107,Toss,0,T2,15-30,15-30,0,3,3,240,0.096,80.0,80.0,51260484,0.0003,0.889,0.0
+1,Anti-Mage,ability,ability,ability:5107,Toss,0,T3,15-30,15-30,0,2,2,180,0.072,90.0,90.0,8719044,0.0012,1.0,0.0
+1,Anti-Mage,ability,ability,ability:5107,Toss,0,T3,30+,30+,0,1,1,144,0.058,144.0,144.0,21743994,0.0004,1.0,0.0
+1,Anti-Mage,ability,ability,ability:5107,Toss,0,fort,30+,30+,0,4,4,528,0.117,132.0,132.0,233606,0.1356,0.917,0.0
+1,Anti-Mage,ability,ability,ability:5107,Toss,0,rax_melee,30+,30+,0,2,2,264,0.12,132.0,132.0,4160139,0.0038,0.917,0.0
+1,Anti-Mage,helm_unit,summon_npc,npc:npc_dota_neutral_black_dragon,npc_dota_neutral_black_dragon,0,rax_range,30+,30+,0,1,6,400,0.308,66.67,400.0,2832177,0.0085,,0.0
+1,Anti-Mage,helm_unit,summon_npc,npc:npc_dota_neutral_black_dragon,npc_dota_neutral_black_dragon,0,rax_melee,30+,30+,0,1,1,54,0.025,54.0,54.0,4160139,0.0008,,0.0
+1,Anti-Mage,helm_unit,summon_npc,npc:npc_dota_neutral_centaur_khan,npc_dota_neutral_centaur_khan,0,T1,15-30,15-30,0,1,2,65,0.036,32.5,65.0,33015584,0.0001,,0.0
+1,Anti-Mage,helm_unit,summon_npc,npc:npc_dota_neutral_ghost,npc_dota_neutral_ghost,0,T2,30+,30+,0,1,1,8,0.003,8.0,8.0,28772588,0.0,,0.0
+1,Anti-Mage,helm_unit,summon_npc,npc:npc_dota_neutral_ogre_magi,npc_dota_neutral_ogre_magi,0,T3,10-15,0-15,0,1,3,52,0.021,17.33,52.0,71652,0.0435,1.0,0.0
+1,Anti-Mage,helm_unit,summon_npc,npc:npc_dota_neutral_ogre_magi,npc_dota_neutral_ogre_magi,0,T4,10-15,0-15,0,1,2,26,0.01,13.0,26.0,19760,0.0789,0.75,0.0
+1,Anti-Mage,helm_unit,summon_npc,npc:npc_dota_neutral_ogre_magi,npc_dota_neutral_ogre_magi,0,rax_melee,10-15,0-15,0,1,12,212,0.096,17.67,212.0,4231,3.0064,1.019,0.0
+1,Anti-Mage,helm_unit,summon_npc,npc:npc_dota_neutral_ogre_magi,npc_dota_neutral_ogre_magi,0,T4,15-30,15-30,0,1,3,40,0.015,13.33,40.0,2177244,0.0011,,0.0
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T3,00-10,0-15,0,2,15,356,0.142,23.73,178.0,4563,4.6811,1.0,0.0
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T1,00-10,0-15,0,4712,36824,889958,494.421,24.17,188.87,64137307,0.8325,1.018,0.00329
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T2,00-10,0-15,0,72,651,14604,5.842,22.43,202.83,616603,1.4211,0.945,5e-05
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,rax_range,00-10,0-15,0,1,3,81,0.062,27.0,81.0,52,93.4615,1.138,0.0
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,fort,10-15,0-15,0,3,38,1037,0.23,27.29,345.67,63,987.619,0.818,0.0
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T1,10-15,0-15,0,10918,110080,3412139,1895.633,31.0,312.52,25861728,7.9163,0.929,0.0126
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,rax_range,10-15,0-15,0,25,233,9992,7.686,42.88,399.68,3227,185.7825,1.286,4e-05
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T3,10-15,0-15,0,54,755,25181,10.072,33.35,466.31,71652,21.0861,1.0,9e-05
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T4,10-15,0-15,0,18,230,5033,1.936,21.88,279.61,19760,15.2824,0.656,2e-05
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T2,10-15,0-15,0,668,7490,235929,94.372,31.5,353.19,6434129,2.2001,0.944,0.00087
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,rax_melee,10-15,0-15,0,27,495,17071,7.76,34.49,632.26,4231,242.0846,1.034,6e-05
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T3,15-30,15-30,0,7380,326146,13066078,5226.431,40.06,1770.47,8719044,89.9141,1.0,0.04826
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T4,15-30,15-30,0,2239,89009,3076482,1183.262,34.56,1374.04,2177244,84.781,0.863,0.01136
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,rax_range,15-30,15-30,0,4508,91744,5435468,4181.129,59.25,1205.74,372348,875.869,1.479,0.02008
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,rax_melee,15-30,15-30,0,4774,176439,8884890,4038.586,50.36,1861.1,530433,1005.0155,1.257,0.03282
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T1,15-30,15-30,0,16643,241534,9591522,5328.623,39.71,576.31,33015584,17.4309,0.991,0.03543
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T2,15-30,15-30,0,17273,663802,23830076,9532.03,35.9,1379.61,51260484,27.8929,0.896,0.08802
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,fort,15-30,15-30,0,1660,57916,2171765,482.614,37.5,1308.29,13219,9857.4703,0.936,0.00802
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,fort,30+,30+,0,14027,497658,23604470,5245.438,47.43,1682.79,233606,6062.6362,0.891,0.08719
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,rax_melee,30+,30+,0,16824,731874,44675862,20307.21,61.04,2655.48,4160139,644.3419,1.147,0.16503
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T4,30+,30+,0,14471,616222,27183337,10455.13,44.11,1878.47,16156037,100.953,0.829,0.10041
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T2,30+,30+,0,15558,616562,27562408,11024.963,44.7,1771.59,28772588,57.4764,0.84,0.10181
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,rax_range,30+,30+,0,15862,340464,24875869,19135.284,73.06,1568.27,2832177,526.9982,1.372,0.09189
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T1,30+,30+,0,2951,42579,1850888,1028.271,43.47,627.21,4935023,22.5031,0.817,0.00684
+1,Anti-Mage,hero_attack,autoattack,hero_attack,hero attack,0,T3,30+,30+,0,18285,942211,50159542,20063.817,53.24,2743.21,21743994,138.4094,1.0,0.18528
+1,Anti-Mage,item,item,item:223,Meteor Hammer,0,T1,00-10,0-15,0,1,21,1287,0.715,61.29,1287.0,64137307,0.0012,,0.0
+1,Anti-Mage,item,item,item:223,Meteor Hammer,0,T2,00-10,0-15,0,1,28,1716,0.686,61.29,1716.0,616603,0.167,,1e-05
+1,Anti-Mage,item,item,item:223,Meteor Hammer,0,T4,10-15,0-15,0,6,90,5597,2.153,62.19,932.83,19760,16.9949,1.007,2e-05
+1,Anti-Mage,item,item,item:223,Meteor Hammer,0,rax_melee,10-15,0-15,0,2,14,858,0.39,61.29,429.0,4231,12.1673,0.992,0.0
+1,Anti-Mage,item,item,item:223,Meteor Hammer,0,T1,10-15,0-15,0,1,8,517,0.287,64.63,517.0,25861728,0.0012,1.046,0.0
+1,Anti-Mage,item,item,item:223,Meteor Hammer,0,rax_range,10-15,0-15,0,2,13,803,0.618,61.77,401.5,3227,14.9303,1.0,0.0
+1,Anti-Mage,item,item,item:223,Meteor Hammer,0,T3,10-15,0-15,0,4,65,4015,1.606,61.77,1003.75,71652,3.3621,1.0,1e-05
+1,Anti-Mage,item,item,item:223,Meteor Hammer,0,T2,10-15,0-15,0,3,41,2563,1.025,62.51,854.33,6434129,0.0239,1.012,1e-05
+1,Anti-Mage,item,item,item:223,Meteor Hammer,0,T3,15-30,15-30,0,9,141,8658,3.463,61.4,962.0,8719044,0.0596,1.0,3e-05
+1,Anti-Mage,item,item,item:223,Meteor Hammer,0,rax_melee,15-30,15-30,0,9,70,4228,1.922,60.4,469.78,530433,0.4783,0.984,2e-05

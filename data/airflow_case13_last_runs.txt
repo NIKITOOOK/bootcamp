@@ -1,0 +1,9 @@
+# Последние 3 запуска DAG кейса 13 (Airflow, 2026-11-15). Все success.
+stage__t1_c13_matches        success 02:04, 00:06, 22:03
+stage__t1_c13_tower_hits     success 02:05, 00:15, 22:09
+stage__t1_c13_players        success 02:16, 00:19, 22:14
+stage__t1_c13_building_falls success 02:16, 00:19, 22:14
+mart__t1_c13_ability_building_damage success 02:03, 00:03, 22:09
+mart__t1_c13_hero_tower_damage       success 02:25, 00:33, 22:27
+mart__t1_c13_team_early_push         success 02:25, 00:33, 22:27
+mart__t1_c13_team_early_push_v2      success 02:25, 00:33, 23:11
