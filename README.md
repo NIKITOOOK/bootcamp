@@ -77,7 +77,7 @@ PostgreSQL / MongoDB
 - `sql/stage/`, `sql/mart/` — SQL потоков с комментариями и проверками качества (`-- check: ...`);
 - `ddl/` — схемы таблиц STAGE и MART;
 - `data/` — сэмплы MART (по 50 строк), счётчики, сводка запусков Airflow, выводы дашборда;
-- `notebooks/` — проверка исправления H3;
+- `notebooks/` — код исследовательского ноутбука кейса 13 (`case13_tower_damage.py`, прототип на выборке 5%, проверка H1–H3) и проверка исправления H3;
 - `screens/` — скриншоты Портала, Airflow (все DAG зелёные), Superset, Marquez (в т.ч. Compact Nodes), JupyterLab.
 
 ## Авторство
