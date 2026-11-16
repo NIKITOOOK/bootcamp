@@ -1,0 +1,481 @@
+source_name,strategy,merge_key,watermark_col,partition_col,schedule,script,query,created_by,created_by_name,created_at,owner_teams,ownership_tags,dependencies,description
+stage__t1_c13_tower_hits,full_load,,,,@hourly,ingest_layer.py,"with hit as (
+    select t.match_id, t.steam_account_id, t.attacker as hero_id, t.npcid as building_npc_id,
+           t.time as hit_sec, t.damage,
+           coalesce(t.byability, 0) as ability_id, coalesce(t.byitem, 0) as item_id, coalesce(t.fromnpc, 0) as npc_id
+    from lakehouse.raw.mongo__tower_damage_events t
+    join lakehouse.stage.t1_c13_matches m on m.match_id = t.match_id
+    where t.npcid between 16 and 35 or t.npcid between 38 and 51
+),
+npc as (
+    select npc_id, max_by(name, sys_insert_stamp) as name
+    from lakehouse.raw.pg__npcs
+    group by npc_id
+),
+abl as (
+    select ability_id, max_by(display_name, sys_insert_stamp) as display_name
+    from lakehouse.raw.pg__abilities
+    group by ability_id
+),
+itm as (
+    select item_id, max_by(localized_name, sys_insert_stamp) as localized_name
+    from lakehouse.raw.pg__items
+    group by item_id
+),
+lv as (
+    select le.match_id, le.steam_account_id, le.abilityid as ability_id,
+           min(case when le.level = 0 then le.time end) as l1_sec,
+           min(case when le.level = 1 then le.time end) as l2_sec,
+           min(case when le.level = 2 then le.time end) as l3_sec,
+           min(case when le.level = 3 then le.time end) as l4_sec,
+           min(case when le.level = 4 then le.time end) as l5_sec,
+           min(case when le.level = 5 then le.time end) as l6_sec,
+           min(case when le.level = 6 then le.time end) as l7_sec
+    from lakehouse.raw.mongo__ability_learn_events le
+    join lakehouse.stage.t1_c13_matches m on m.match_id = le.match_id
+    where le.steam_account_id <> 4294967295
+    group by le.match_id, le.steam_account_id, le.abilityid
+),
+e as (
+    select h.match_id, h.hero_id, pl.is_radiant, h.steam_account_id, h.building_npc_id, h.hit_sec, h.damage,
+           h.ability_id, h.item_id, h.npc_id,
+           regexp_replace(n.name, '_[0-9]+$', '') as npc_name
+    from hit h
+    join lakehouse.stage.t1_c13_players pl on pl.match_id = h.match_id and pl.hero_id = h.hero_id
+    left join npc n on n.npc_id = h.npc_id and h.npc_id > 0
+    where (h.building_npc_id between 16 and 25 or h.building_npc_id between 38 and 43 or h.building_npc_id = 50) <> pl.is_radiant
+),
+c as (
+    select e.match_id, e.hero_id, e.is_radiant, e.building_npc_id, e.hit_sec, e.damage,
+           case when e.building_npc_id between 16 and 18 or e.building_npc_id between 26 and 28 then 'T1'
+                when e.building_npc_id between 19 and 21 or e.building_npc_id between 29 and 31 then 'T2'
+                when e.building_npc_id between 22 and 24 or e.building_npc_id between 32 and 34 then 'T3'
+                when e.building_npc_id in (25, 35) then 'T4'
+                when e.building_npc_id in (38, 39, 40, 44, 45, 46) then 'rax_melee'
+                when e.building_npc_id in (41, 42, 43, 47, 48, 49) then 'rax_range'
+                else 'fort' end as building_type,
+           case when e.building_npc_id in (16, 19, 22, 26, 29, 32, 38, 41, 44, 47) then 'top'
+                when e.building_npc_id in (17, 20, 23, 27, 30, 33, 39, 42, 45, 48) then 'mid'
+                when e.building_npc_id in (18, 21, 24, 28, 31, 34, 40, 43, 46, 49) then 'bot'
+                else 'base' end as lane,
+           case when e.item_id > 0 or e.npc_name like 'npc_dota_necronomicon%' then 'item'
+                when e.npc_id = 0 and e.ability_id > 0 then 'ability'
+                when e.npc_id = 0 then 'hero_attack'
+                when e.npc_name like 'npc_dota_neutral%' or e.npc_name = 'npc_dota_dark_troll_warlord_skeleton_warrior'
+                     then case when e.hero_id in (66, 58) then 'own_summon' else 'helm_unit' end
+                when e.npc_name is null or e.npc_name like 'npc_dota_creep%' or e.npc_name like 'npc_dota_goodguys%'
+                     or e.npc_name like 'npc_dota_badguys%' or e.npc_name like 'npc_dota_unit%' then 'other_npc'
+                else 'own_summon' end as source_type,
+           case when e.ability_id > 0 then 'ability:' || cast(e.ability_id as varchar(20))
+                when e.item_id > 0 then 'item:' || cast(e.item_id as varchar(20))
+                when e.npc_id > 0 then 'npc:' || coalesce(e.npc_name, cast(e.npc_id as varchar(20)))
+                else 'hero_attack' end as source_id,
+           coalesce(a.display_name, it.localized_name, e.npc_name,
+                    case when e.npc_id > 0 then 'npc ' || cast(e.npc_id as varchar(20)) else 'hero attack' end) as source_name,
+           case when e.ability_id = 0 then 0
+                when e.steam_account_id = 4294967295 then -1
+                when e.hit_sec >= lv.l7_sec then 7
+                when e.hit_sec >= lv.l6_sec then 6
+                when e.hit_sec >= lv.l5_sec then 5
+                when e.hit_sec >= lv.l4_sec then 4
+                when e.hit_sec >= lv.l3_sec then 3
+                when e.hit_sec >= lv.l2_sec then 2
+                when e.hit_sec >= lv.l1_sec then 1
+                else 0 end as ability_level,
+           case when e.hit_sec < 600 then '00-10'
+                when e.hit_sec < 900 then '10-15'
+                when e.hit_sec < 1800 then '15-30'
+                else '30+' end as time_window
+    from e
+    left join lv on e.ability_id > 0 and lv.match_id = e.match_id
+                and lv.steam_account_id = e.steam_account_id and lv.ability_id = e.ability_id
+    left join abl a on a.ability_id = e.ability_id and e.ability_id > 0
+    left join itm it on it.item_id = e.item_id and e.item_id > 0
+)
+select match_id, hero_id, is_radiant, building_npc_id, building_type, lane, source_type, source_id,
+       max(source_name) as source_name, ability_level, time_window,
+       count(*) as hits, sum(damage) as damage, min(hit_sec) as first_hit_sec, max(hit_sec) as last_hit_sec
+from c
+group by match_id, hero_id, is_radiant, building_npc_id, building_type, lane, source_type, source_id, ability_level, time_window",maleychenko_n,Малейченко Никита,2026-11-14 12:03:46.347620,['Команда 1'],"['stage', 'developer:Малейченко Никита', 'team:Команда 1']","['raw/mongo__ability_learn_events', 'raw/mongo__tower_damage_events', 'raw/pg__abilities', 'raw/pg__items', 'raw/pg__npcs', 'stage/t1_c13_matches', 'stage/t1_c13_players']","Удары по вражеским башням и казармам в матчах кейса 13 «Способности по башням»: герой, здание (тип и линия), источник урона (атака, способность с уровнем, предмет, призыв), окно времени матча. Основа для сравнения вклада способностей и героев в разрушение башен. Только удары по зданиям противника. Когорта матчей из stage.t1_c13_matches, последняя версия справочников. У анонимных игроков уровень способности -1 (неизвестен)."
+stage__t1_c13_building_falls,full_load,,,,@hourly,ingest_layer.py,"with mt as (
+    select match_id, duration_sec as duration from lakehouse.stage.t1_c13_matches
+),
+ev0 as (
+    select d.match_id, d.time as t_sec, s.side, case when s.side = 'radiant' then d.radiant else d.dire end as mask
+    from lakehouse.raw.mongo__tower_death_events d
+    join mt on mt.match_id = d.match_id
+    cross join (values ('radiant'), ('dire')) as s(side)
+),
+ev as (
+    select match_id, t_sec, side, mask, lag(mask, 1, 0) over (partition by match_id, side order by t_sec, mask) as prev
+    from ev0
+),
+dt as (
+    select match_id, side, b, min(t_sec) as t_death
+    from ev
+    cross join (values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (12), (13), (14), (15), (16)) as t(b)
+    where mod(cast(floor(cast(mask as double) / power(2, b)) as bigint), 2) = 1
+      and mod(cast(floor(cast(prev as double) / power(2, b)) as bigint), 2) = 0
+    group by 1, 2, 3
+),
+t4_be as (
+    select b.match_id, case when b.isradiant then 'radiant' else 'dire' end as side, max(b.t_fall) as t4_second_fall
+    from (select be0.match_id, be0.indexid, bool_or(be0.isradiant) as isradiant, max(be0.npcid) as npcid,
+                 max(case when be0.type = 'TOWER' then 1 else 0 end) as is_tower,
+                 min(case when be0.hp = 0 then be0.time end) as t_fall
+          from lakehouse.raw.mongo__building_events be0
+          join mt on mt.match_id = be0.match_id
+          group by 1, 2) b
+    where b.is_tower = 1 and b.npcid in (25, 35) and b.t_fall is not null
+    group by 1, 2
+    having count(*) = 2
+),
+dp0 as (
+    select mt.match_id, mt.duration, s.side,
+           max(case when b = 0 then t_death end) as d0,
+           max(case when b = 1 then t_death end) as d1,
+           max(case when b = 2 then t_death end) as d2,
+           max(case when b = 3 then t_death end) as d3,
+           max(case when b = 4 then t_death end) as d4,
+           max(case when b = 5 then t_death end) as d5,
+           max(case when b = 6 then t_death end) as d6,
+           max(case when b = 7 then t_death end) as d7,
+           max(case when b = 8 then t_death end) as d8,
+           max(case when b = 9 then t_death end) as d9,
+           max(case when b = 10 then t_death end) as d10,
+           max(case when b = 11 then t_death end) as d11,
+           max(case when b = 12 then t_death end) as d12,
+           max(case when b = 13 then t_death end) as d13,
+           max(case when b = 14 then t_death end) as d14,
+           max(case when b = 15 then t_death end) as d15,
+           max(case when b = 16 then t_death end) as d16
+    from mt
+    cross join (values ('radiant'), ('dire')) as s(side)
+    left join dt on dt.match_id = mt.match_id and dt.side = s.side
+    group by 1, 2, 3
+),
+dp as (
+    select dp0.match_id, dp0.duration, dp0.side, dp0.d0, dp0.d1, dp0.d2, dp0.d3, dp0.d4, dp0.d5, dp0.d6, dp0.d7, dp0.d8, dp0.d9, dp0.d10, dp0.d11, dp0.d12, dp0.d13, dp0.d14, dp0.d15, dp0.d16,
+           be.t4_second_fall as t4b,
+           case when be.t4_second_fall is not null then 'building_events' else 'none' end as t4b_source,
+           nullif(least(coalesce(dp0.d6, 99999), coalesce(dp0.d7, 99999), coalesce(dp0.d8, 99999)), 99999) as t3_first_fall
+    from dp0
+    left join t4_be be on be.match_id = dp0.match_id and be.side = dp0.side
+),
+sl as (
+    select slot, building_type, lane, rad_npc, dire_npc
+    from (values (0, 'T1', 'top', 16, 26), (1, 'T1', 'mid', 17, 27), (2, 'T1', 'bot', 18, 28),
+                 (3, 'T2', 'top', 19, 29), (4, 'T2', 'mid', 20, 30), (5, 'T2', 'bot', 21, 31),
+                 (6, 'T3', 'top', 22, 32), (7, 'T3', 'mid', 23, 33), (8, 'T3', 'bot', 24, 34),
+                 (9, 'T4', 'base', 25, 35), (17, 'T4', 'base', 25, 35),
+                 (10, 'rax_melee', 'top', 38, 44), (11, 'rax_melee', 'mid', 39, 45), (12, 'rax_melee', 'bot', 40, 46),
+                 (13, 'rax_range', 'top', 41, 47), (14, 'rax_range', 'mid', 42, 48), (15, 'rax_range', 'bot', 43, 49),
+                 (16, 'fort', 'base', 50, 51)) as v(slot, building_type, lane, rad_npc, dire_npc)
+),
+w as (
+    select dp.match_id, dp.duration, dp.side, sl.slot, sl.building_type, sl.lane, sl.rad_npc, sl.dire_npc,
+           cast(case when sl.slot in (0, 1, 2) then 0
+                     when sl.slot = 3 then dp.d0 when sl.slot = 4 then dp.d1 when sl.slot = 5 then dp.d2
+                     when sl.slot = 6 then dp.d3 when sl.slot = 7 then dp.d4 when sl.slot = 8 then dp.d5
+                     when sl.slot in (10, 13) then dp.d6 when sl.slot in (11, 14) then dp.d7 when sl.slot in (12, 15) then dp.d8
+                     when sl.slot in (9, 17) then dp.t3_first_fall
+                     else dp.t4b end as integer) as available_from_sec,
+           cast(case when sl.slot = 0 then dp.d0 when sl.slot = 1 then dp.d1 when sl.slot = 2 then dp.d2
+                     when sl.slot = 3 then dp.d3 when sl.slot = 4 then dp.d4 when sl.slot = 5 then dp.d5
+                     when sl.slot = 6 then dp.d6 when sl.slot = 7 then dp.d7 when sl.slot = 8 then dp.d8
+                     when sl.slot = 9 then dp.d9 when sl.slot = 10 then dp.d10 when sl.slot = 11 then dp.d11
+                     when sl.slot = 12 then dp.d12 when sl.slot = 13 then dp.d13 when sl.slot = 14 then dp.d14
+                     when sl.slot = 15 then dp.d15 when sl.slot = 16 then dp.d16
+                     else dp.t4b end as integer) as fall_sec,
+           case when sl.slot = 17 then dp.t4b_source else 'mask' end as src
+    from dp
+    cross join sl
+)
+select match_id, side as building_side, slot as building_code, building_type, lane,
+       case when side = 'radiant' then rad_npc else dire_npc end as npc_id,
+       available_from_sec, fall_sec as fall_time_sec,
+       case when fall_sec is null then 'none' else src end as fall_time_source,
+       case when coalesce(fall_sec, 99999) <= 900 then 1 else 0 end as fell_by_15,
+       case when available_from_sec is null then 0
+            else greatest(coalesce(fall_sec, duration) - available_from_sec, 0) end as exposure_sec
+from w",maleychenko_n,Малейченко Никита,2026-11-14 17:20:54.001092,['Команда 1'],"['stage', 'developer:Малейченко Никита', 'team:Команда 1']","['raw/mongo__building_events', 'raw/mongo__tower_death_events', 'stage/t1_c13_matches']","Падение зданий (башни T1-T4, казармы, трон) по матчам кейса 13: когда здание стало доступным для атаки, когда упало, сколько секунд было доступно (exposure), упало ли до 15 минуты. Время падения из битовых масок tower_death; второй T4 только по подтверждённому HP = 0 из building_events, иначе NULL. Основа для витрин раннего пуша."
+mart__t1_c13_hero_tower_damage,full_load,,,,@hourly,ingest_layer.py,"with p as (
+    select match_id, hero_id, hero_name, attack_type, pos_proxy, tdpm, dmg_share, win, has_helm,
+           case when pusher_allies = 0 then '0' when pusher_allies = 1 then '1' else '2+' end as pusher_allies_grp
+    from lakehouse.stage.t1_c13_players
+),
+pos as (
+    select pos_proxy, approx_percentile(tdpm, 0.5) as tdpm_expected, avg(tdpm) as tdpm_pos_avg
+    from p group by pos_proxy
+),
+hd as (
+    select match_id, hero_id, sum(damage) as dmg_total,
+           sum(cast(damage as double) / (case building_type when 'T1' then 1800.0 when 'T2' then 2500.0 when 'T3' then 2500.0 when 'T4' then 2600.0 when 'rax_melee' then 2200.0 when 'rax_range' then 1300.0 when 'fort' then 4500.0 end)) as hp_units,
+           sum(case when time_window in ('00-10', '10-15') then damage else 0 end) as dmg_0_15,
+           sum(case when time_window = '15-30' then damage else 0 end) as dmg_15_30,
+           sum(case when time_window = '30+' then damage else 0 end) as dmg_30_plus,
+           sum(case when source_type = 'ability' then damage else 0 end) as dmg_ability,
+           sum(case when source_type = 'item' then damage else 0 end) as dmg_item,
+           sum(case when source_type = 'hero_attack' then damage else 0 end) as dmg_autoattack,
+           sum(case when source_type in ('own_summon', 'helm_unit', 'other_npc') then damage else 0 end) as dmg_summon_npc
+    from lakehouse.stage.t1_c13_tower_hits
+    group by match_id, hero_id
+)
+select p.hero_id, max(p.hero_name) as hero_name, max(p.attack_type) as attack_type, p.pos_proxy, p.pusher_allies_grp,
+       count(*) as games,
+       round(avg(p.tdpm), 2) as tdpm_avg,
+       round(approx_percentile(p.tdpm, 0.5), 2) as tdpm_median,
+       round(max(pos.tdpm_expected), 2) as tdpm_expected,
+       round(approx_percentile(p.tdpm, 0.5) / nullif(max(pos.tdpm_expected), 0), 3) as tdpm_index,
+       round(avg(p.tdpm) / nullif(max(pos.tdpm_pos_avg), 0), 3) as tdpm_index_avg,
+       round(avg(p.dmg_share), 4) as dmg_share_avg,
+       round(avg(cast(p.win as double)), 4) as win_rate,
+       round(avg(cast(p.has_helm as double)), 4) as helm_rate,
+       round(cast(sum(hd.dmg_0_15) as double) / nullif(sum(hd.dmg_total), 0), 4) as share_phase_0_15,
+       round(cast(sum(hd.dmg_15_30) as double) / nullif(sum(hd.dmg_total), 0), 4) as share_phase_15_30,
+       round(cast(sum(hd.dmg_30_plus) as double) / nullif(sum(hd.dmg_total), 0), 4) as share_phase_30_plus,
+       round(cast(sum(hd.dmg_ability) as double) / nullif(sum(hd.dmg_total), 0), 4) as share_ability,
+       round(cast(sum(hd.dmg_item) as double) / nullif(sum(hd.dmg_total), 0), 4) as share_item,
+       round(cast(sum(hd.dmg_autoattack) as double) / nullif(sum(hd.dmg_total), 0), 4) as share_autoattack,
+       round(cast(sum(hd.dmg_summon_npc) as double) / nullif(sum(hd.dmg_total), 0), 4) as share_summon_npc,
+       round(sum(hd.hp_units) / count(*), 3) as hp_units_per_game
+from p
+join pos on pos.pos_proxy = p.pos_proxy
+left join hd on hd.match_id = p.match_id and hd.hero_id = p.hero_id
+group by p.hero_id, p.pos_proxy, p.pusher_allies_grp",maleychenko_n,Малейченко Никита,2026-11-14 17:36:16.226490,['Команда 1'],"['mart', 'developer:Малейченко Никита', 'team:Команда 1']","['stage/t1_c13_players', 'stage/t1_c13_tower_hits']","Витрина кейса 13 «Способности по башням» для гипотезы «часть героев даёт непропорционально большой урон башням»: по каждому герою, позиции (по net worth) и числу сильных пушеров среди союзников. Урон по башням в минуту и индекс к ожидаемому для позиции (1 = как у медианного героя позиции), доля урона в команде, винрейт, доля шлемов; доля урона героя по фазам матча (0-15, 15-30, 30+ мин) и по источнику (способности, предметы, автоатака, призывы); урон в единицах HP зданий. Зерно: герой × позиция × число сильных пушеров. Только сбалансированные режимы без Turbo."
+stage__t1_c13_players,full_load,,,,@hourly,ingest_layer.py,"with p as (
+    select mp.match_id, mp.player_slot, mp.account_id, mp.hero_id, mp.is_radiant, mp.win, mp.rank,
+           mp.net_worth, mp.tower_damage, m.duration_sec,
+           row_number() over (partition by mp.match_id, mp.player_slot order by mp.sys_insert_stamp desc, mp.job_id desc) as rn
+    from lakehouse.raw.pg__match_players mp
+    join lakehouse.stage.t1_c13_matches m on m.match_id = mp.match_id
+),
+helm as (
+    select pe.match_id, pe.steam_account_id, min(pe.time) as helm_time_sec
+    from lakehouse.raw.mongo__purchase_events pe
+    join lakehouse.stage.t1_c13_matches m on m.match_id = pe.match_id
+    where pe.itemid in (164, 635) and pe.steam_account_id <> 4294967295
+    group by 1, 2
+),
+f as (
+    select p.match_id, p.player_slot, p.hero_id, h.localized_name as hero_name, h.attack_type,
+           p.is_radiant, case when p.win then 1 else 0 end as win, p.net_worth, nullif(p.rank, 0) as rank_tier,
+           case when p.account_id = 4294967295 then 1 else 0 end as is_anonymous,
+           p.tower_damage, p.duration_sec,
+           cast(p.tower_damage as double) * 60 / p.duration_sec as tdpm,
+           case when hl.match_id is not null then 1 else 0 end as has_helm, hl.helm_time_sec,
+           case when p.hero_id in (45, 92, 27, 61, 77, 64, 82, 37, 56, 109, 48, 95, 10, 52, 21, 8, 74, 33, 43, 80, 53, 42,
+                                   63, 1, 136, 49, 18, 81, 6, 59, 58, 138, 12, 54, 46, 78, 60, 35, 104, 20, 47, 113, 93)
+                then 1 else 0 end as is_strong_pusher,
+           row_number() over (partition by p.match_id, p.is_radiant order by p.net_worth desc, p.player_slot) as pos_proxy
+    from p
+    left join (select hero_id, localized_name, attack_type
+               from (select hero_id, localized_name, attack_type,
+                            row_number() over (partition by hero_id order by sys_insert_stamp desc, job_id desc) as rn
+                     from lakehouse.raw.pg__heroes) x where x.rn = 1) h on h.hero_id = p.hero_id
+    left join helm hl on hl.match_id = p.match_id and hl.steam_account_id = p.account_id and p.account_id <> 4294967295
+    where p.rn = 1
+)
+select match_id, player_slot, hero_id, hero_name, attack_type, is_radiant, win, net_worth, rank_tier, is_anonymous,
+       tower_damage, duration_sec, pos_proxy, tdpm, has_helm, helm_time_sec, is_strong_pusher,
+       sum(is_strong_pusher) over (partition by match_id, is_radiant) - is_strong_pusher as pusher_allies,
+       sum(tower_damage) over (partition by match_id, is_radiant) as team_tower_damage,
+       cast(tower_damage as double) / nullif(sum(tower_damage) over (partition by match_id, is_radiant), 0) as dmg_share
+from f",maleychenko_n,Малейченко Никита,2026-11-14 09:50:39.772772,['Команда 1'],"['stage', 'developer:Малейченко Никита', 'team:Команда 1']","['raw/mongo__purchase_events', 'raw/pg__heroes', 'raw/pg__match_players', 'stage/t1_c13_matches']","Игроки матчей кейса 13: герой, сторона, net worth, урон башням, время покупки Helm of the Dominator, признак сильного пушера. Вспомогательная таблица для t1_c13_tower_hits и витрин урона башням. Последняя версия строки по sys_insert_stamp."
+stage__t1_c13_matches,full_load,,,,@hourly,ingest_layer.py,"with m as (
+    select match_id, start_time, game_mode, duration, radiant_win, human_players, sys_insert_stamp,
+           row_number() over (partition by match_id order by sys_insert_stamp desc, job_id desc) as rn
+    from lakehouse.raw.pg__matches
+),
+pc as (
+    select match_id, count(*) as n_players, count(distinct hero_id) as n_heroes, count_if(hero_id <= 0) as n_bad_hero,
+           count_if(is_radiant) as n_radiant
+    from (
+        select match_id, player_slot, hero_id, is_radiant,
+               row_number() over (partition by match_id, player_slot order by sys_insert_stamp desc, job_id desc) as rn
+        from lakehouse.raw.pg__match_players
+    ) mp
+    where mp.rn = 1
+    group by match_id
+)
+select m.match_id,
+       cast(from_unixtime(m.start_time) as timestamp) as start_time,
+       date_trunc('hour', cast(from_unixtime(m.start_time) as timestamp)) as match_hour,
+       m.duration as duration_sec,
+       cast(round(m.duration / 60.0, 1) as decimal(13,1)) as duration_min,
+       m.game_mode,
+       m.radiant_win,
+       m.sys_insert_stamp as loaded_at
+from m
+join pc on pc.match_id = m.match_id
+where m.rn = 1 and m.game_mode <> 23 and m.duration >= 900 and m.human_players = 10
+  and pc.n_players = 10 and pc.n_heroes = 10 and pc.n_bad_hero = 0 and pc.n_radiant = 5
+  and m.start_time is not null and m.radiant_win is not null",maleychenko_n,Малейченко Никита,2026-11-14 09:22:35.122649,['Команда 1'],"['stage', 'developer:Малейченко Никита', 'team:Команда 1']","['raw/pg__match_players', 'raw/pg__matches']","Вспомогательная таблица кейса 13 «Способности по башням»: когорта матчей для t1_c13_tower_hits и витрин по урону башням. Без Turbo (другая экономика), от 15 минут (раньше ранний пуш башен не оценить), 10 игроков и 10 разных героев (иначе нет честного сравнения команд). Длительность хранится как фактор стадии игры. Последняя версия строки по sys_insert_stamp."
+mart__t1_c13_team_early_push,full_load,,,,@hourly,ingest_layer.py,"with t as (
+    select p.match_id, p.is_radiant, max(p.win) as win, sum(p.is_strong_pusher) as strong_pushers,
+           avg(p.rank_tier) as avg_rank_tier, sum(p.is_anonymous) as anonymous_players,
+           sum(p.has_helm) as helm_players, sum(p.net_worth) as team_net_worth
+    from lakehouse.stage.t1_c13_players p
+    group by 1, 2
+),
+dmg as (
+    select match_id, is_radiant,
+           sum(case when time_window = '00-10' then damage else 0 end) as bld_dmg_10,
+           sum(case when time_window in ('00-10', '10-15') then damage else 0 end) as bld_dmg_15,
+           sum(case when time_window in ('00-10', '10-15') then cast(damage as double) / (case building_type when 'T1' then 1800.0 when 'T2' then 2500.0 when 'T3' then 2500.0 when 'T4' then 2600.0 when 'rax_melee' then 2200.0 when 'rax_range' then 1300.0 when 'fort' then 4500.0 end) else 0 end) as bld_hp_units_15,
+           sum(case when time_window = '15-30' then damage else 0 end) as bld_dmg_15_30,
+           sum(case when time_window = '30+' then damage else 0 end) as bld_dmg_30_plus,
+           sum(case when time_window in ('00-10', '10-15') and source_type = 'ability' then damage else 0 end) as ability_dmg_15,
+           sum(case when time_window in ('00-10', '10-15') and source_type = 'item' then damage else 0 end) as item_dmg_15,
+           sum(case when time_window in ('00-10', '10-15') and source_type = 'hero_attack' then damage else 0 end) as autoattack_dmg_15,
+           sum(case when time_window in ('00-10', '10-15') and source_type in ('own_summon', 'helm_unit', 'other_npc') then damage else 0 end) as summon_npc_dmg_15
+    from lakehouse.stage.t1_c13_tower_hits
+    group by 1, 2
+),
+tw as (
+    select match_id, building_side, sum(fell_by_15) as towers_lost_15,
+           min(case when building_type = 'T1' then fall_time_sec end) as first_t1_fall_sec,
+           max(case when fall_time_sec is not null then 1 else 0 end) as has_fall_data
+    from lakehouse.stage.t1_c13_building_falls
+    where building_type in ('T1', 'T2', 'T3', 'T4')
+    group by 1, 2
+),
+s as (
+    select t.match_id, t.is_radiant, m.match_hour, m.duration_min, t.strong_pushers, round(t.avg_rank_tier, 1) as avg_rank_tier,
+           t.anonymous_players, t.helm_players, t.team_net_worth,
+           coalesce(d.bld_dmg_10, 0) as bld_dmg_10, coalesce(d.bld_dmg_15, 0) as bld_dmg_15,
+           coalesce(d.bld_hp_units_15, 0) as bld_hp_units_15, coalesce(d.bld_dmg_15_30, 0) as bld_dmg_15_30, coalesce(d.bld_dmg_30_plus, 0) as bld_dmg_30_plus,
+           coalesce(d.ability_dmg_15, 0) as ability_dmg_15, coalesce(d.item_dmg_15, 0) as item_dmg_15,
+           coalesce(d.autoattack_dmg_15, 0) as autoattack_dmg_15, coalesce(d.summon_npc_dmg_15, 0) as summon_npc_dmg_15,
+           coalesce(tw.towers_lost_15, 0) as towers_down_15, tw.first_t1_fall_sec as first_enemy_t1_fall_sec,
+           t.win
+    from t
+    join lakehouse.stage.t1_c13_matches m on m.match_id = t.match_id
+    left join dmg d on d.match_id = t.match_id and d.is_radiant = t.is_radiant
+    join tw on tw.match_id = t.match_id and tw.building_side = case when t.is_radiant then 'dire' else 'radiant' end and tw.has_fall_data = 1
+)
+select a.match_id, a.is_radiant, a.match_hour, a.duration_min, a.strong_pushers, a.avg_rank_tier,
+       a.anonymous_players, a.helm_players,
+       a.bld_dmg_10, a.bld_dmg_15, round(a.bld_hp_units_15, 2) as bld_hp_units_15, a.bld_dmg_15_30, a.bld_dmg_30_plus,
+       a.ability_dmg_15, a.item_dmg_15, a.autoattack_dmg_15, a.summon_npc_dmg_15,
+       a.towers_down_15, a.first_enemy_t1_fall_sec,
+       a.bld_dmg_15 - b.bld_dmg_15 as bld_dmg_15_diff,
+       a.towers_down_15 - b.towers_down_15 as towers_15_diff,
+       a.strong_pushers - b.strong_pushers as strong_pushers_diff,
+       a.team_net_worth, a.team_net_worth - b.team_net_worth as net_worth_end_diff,
+       a.win
+from s a
+join s b on b.match_id = a.match_id and b.is_radiant <> a.is_radiant",maleychenko_n,Малейченко Никита,2026-11-14 17:52:40.683003,['Команда 1'],"['mart', 'developer:Малейченко Никита', 'team:Команда 1']","['stage/t1_c13_building_falls', 'stage/t1_c13_matches', 'stage/t1_c13_players', 'stage/t1_c13_tower_hits']","Ранний пуш команд в кейсе 13 «Способности по башням»: урон по зданиям соперника до 10 и до 15 минуты (в единицах и в HP зданий), в фазах 15-30 и 30+, разбивка урона до 15 минуты по источникам (способности, предметы, автоатака, призывы), башни T1-T4 соперника, снесённые до 15 минуты, время падения первой T1, состав команды (сильные пушеры, шлемы, средний ранг, net worth) и разница с соперником. Время учитывается окнами 0-10 и 0-15 минут, временем падения первой T1 и числом башен к 15-й минуте (полный exposure по времени доступности зданий в витрине ability_building_damage). Зерно: матч × сторона. win: 1 = победа команды. Только сбалансированные режимы без Turbo, матчи с данными о падении башен."
+mart__t1_c13_ability_building_damage,full_load,,,,@hourly,ingest_layer.py,"with w as (
+    select time_window, w0, w1 from (values ('00-10', 0, 600), ('10-15', 600, 900), ('15-30', 900, 1800), ('30+', 1800, 1000000)) as t(time_window, w0, w1)
+),
+ex as (
+    select f.match_id, f.building_side, f.building_type, w.time_window,
+           sum(greatest(least(coalesce(f.fall_time_sec, m.duration_sec), w.w1) - greatest(f.available_from_sec, w.w0), 0)) as exposure_sec
+    from lakehouse.stage.t1_c13_building_falls f
+    join lakehouse.stage.t1_c13_matches m on m.match_id = f.match_id
+    cross join w
+    where f.available_from_sec is not null
+    group by 1, 2, 3, 4
+),
+hero_ex as (
+    select p.hero_id, ex.building_type, ex.time_window, sum(ex.exposure_sec) as exposure_sec
+    from lakehouse.stage.t1_c13_players p
+    join ex on ex.match_id = p.match_id and ex.building_side = case when p.is_radiant then 'dire' else 'radiant' end
+    group by 1, 2, 3
+),
+ab as (
+    select cast(abilityid as bigint) as ability_id, max(case when istalent then 1 else 0 end) as is_talent
+    from lakehouse.raw.mongo__ability_learn_events
+    group by 1
+),
+h as (
+    select hero_id, source_type, source_id, max(source_name) as source_name, ability_level, building_type, time_window,
+           count(distinct match_id) as matches, sum(hits) as hits, sum(damage) as damage,
+           sum(cast(damage as double) / (case building_type when 'T1' then 1800.0 when 'T2' then 2500.0 when 'T3' then 2500.0 when 'T4' then 2600.0 when 'rax_melee' then 2200.0 when 'rax_range' then 1300.0 when 'fort' then 4500.0 end)) as damage_hp_units
+    from lakehouse.stage.t1_c13_tower_hits
+    group by hero_id, source_type, source_id, ability_level, building_type, time_window
+),
+r as (
+    select h.hero_id, hn.hero_name, h.source_type, h.source_id, h.source_name, h.ability_level,
+           h.building_type, h.time_window, h.matches, h.hits, h.damage, h.damage_hp_units,
+           coalesce(ab.is_talent, 0) as is_talent,
+           cast(h.damage as double) / h.hits as dmg_per_hit,
+           cast(h.damage as double) / h.matches as dmg_per_match,
+           hx.exposure_sec,
+           cast(h.damage as double) * 60 / nullif(hx.exposure_sec, 0) as dmg_per_exposure_min,
+           cast(h.damage as double) / sum(h.damage) over (partition by h.hero_id) as share_of_hero_damage
+    from h
+    left join hero_ex hx on hx.hero_id = h.hero_id and hx.building_type = h.building_type and hx.time_window = h.time_window
+    left join (select hero_id, max(hero_name) as hero_name from lakehouse.stage.t1_c13_players group by hero_id) hn on hn.hero_id = h.hero_id
+    left join ab on h.source_type = 'ability' and ab.ability_id = try_cast(substr(h.source_id, 9) as bigint)
+)
+select hero_id, hero_name, source_type,
+       case when source_type = 'ability' then 'ability' when source_type = 'item' then 'item'
+            when source_type = 'hero_attack' then 'autoattack' else 'summon_npc' end as source_group,
+       source_id, source_name, ability_level, building_type, time_window,
+       case when time_window in ('00-10', '10-15') then '0-15' when time_window = '15-30' then '15-30' else '30+' end as match_phase,
+       is_talent, matches, hits, damage, round(damage_hp_units, 3) as damage_hp_units, round(dmg_per_hit, 2) as dmg_per_hit, round(dmg_per_match, 2) as dmg_per_match,
+       exposure_sec, round(dmg_per_exposure_min, 4) as dmg_per_exposure_min,
+       round(dmg_per_hit / nullif(max(case when building_type = 'T3' then dmg_per_hit end)
+             over (partition by hero_id, source_type, source_id, ability_level, time_window), 0), 3) as ratio_to_t3,
+       round(share_of_hero_damage, 5) as share_of_hero_damage
+from r",maleychenko_n,Малейченко Никита,2026-11-14 18:13:43.774081,['Команда 1'],"['mart', 'developer:Малейченко Никита', 'team:Команда 1']","['raw/mongo__ability_learn_events', 'stage/t1_c13_building_falls', 'stage/t1_c13_matches', 'stage/t1_c13_players', 'stage/t1_c13_tower_hits']","Урон героев по зданиям соперника в разрезе способности или источника урона (кейс 13 «Способности по башням»). Зерно: герой × источник (способность с уровнем, предмет, автоатака, призыв) × тип здания (T1-T4, казармы, трон) × окно времени (0-10, 10-15, 15-30, 30+ минут). Колонки: число матчей, попаданий, урон, урон в единицах HP здания, урон за удар и за матч, время доступности здания (exposure_sec, считается по моментам падения предыдущих башен) и урон за минуту доступности, отношение урона за удар к T3, доля в общем уроне героя, признаки таланта и группа источника. Выборка берётся из STAGE-слоя t1_c13_matches: режим Turbo (game_mode 23) там уже исключён, и все оставшиеся режимы в выборке имеют balanced=true в справочнике pg__game_modes (проверено, дополнительный фильтр не меняет результат). Только матчи с данными о падении башен. Для устойчивых выводов используйте порог по числу матчей (matches)."
+mart__t1_c13_team_early_push_v2,full_load,,,,@hourly,ingest_layer.py,"with t as (
+    select p.match_id, p.is_radiant, max(p.win) as win, sum(p.is_strong_pusher) as strong_pushers,
+           avg(p.rank_tier) as avg_rank_tier, sum(p.is_anonymous) as anonymous_players,
+           sum(p.has_helm) as helm_players, sum(p.net_worth) as team_net_worth
+    from lakehouse.stage.t1_c13_players p
+    group by 1, 2
+),
+dmg as (
+    select match_id, is_radiant,
+           sum(case when time_window = '00-10' then damage else 0 end) as bld_dmg_10,
+           sum(case when time_window in ('00-10', '10-15') then damage else 0 end) as bld_dmg_15,
+           sum(case when time_window in ('00-10', '10-15') then cast(damage as double) / (case building_type when 'T1' then 1800.0 when 'T2' then 2500.0 when 'T3' then 2500.0 when 'T4' then 2600.0 when 'rax_melee' then 2200.0 when 'rax_range' then 1300.0 when 'fort' then 4500.0 end) else 0 end) as bld_hp_units_15,
+           sum(case when time_window = '15-30' then damage else 0 end) as bld_dmg_15_30,
+           sum(case when time_window = '30+' then damage else 0 end) as bld_dmg_30_plus,
+           sum(case when time_window in ('00-10', '10-15') and source_type = 'ability' then damage else 0 end) as ability_dmg_15,
+           sum(case when time_window in ('00-10', '10-15') and source_type = 'item' then damage else 0 end) as item_dmg_15,
+           sum(case when time_window in ('00-10', '10-15') and source_type = 'hero_attack' then damage else 0 end) as autoattack_dmg_15,
+           sum(case when time_window in ('00-10', '10-15') and source_type in ('own_summon', 'helm_unit', 'other_npc') then damage else 0 end) as summon_npc_dmg_15
+    from lakehouse.stage.t1_c13_tower_hits
+    group by 1, 2
+),
+tw as (
+    select match_id, building_side, sum(fell_by_15) as towers_lost_15,
+           min(case when building_type = 'T1' then fall_time_sec end) as first_t1_fall_sec
+    from lakehouse.stage.t1_c13_building_falls
+    where building_type in ('T1', 'T2', 'T3', 'T4')
+    group by 1, 2
+),
+md as (
+    select match_id from lakehouse.stage.t1_c13_building_falls where fall_time_sec is not null group by 1
+),
+s as (
+    select t.match_id, t.is_radiant, m.match_hour, m.duration_min, t.strong_pushers, round(t.avg_rank_tier, 1) as avg_rank_tier,
+           t.anonymous_players, t.helm_players, t.team_net_worth,
+           coalesce(d.bld_dmg_10, 0) as bld_dmg_10, coalesce(d.bld_dmg_15, 0) as bld_dmg_15,
+           coalesce(d.bld_hp_units_15, 0) as bld_hp_units_15, coalesce(d.bld_dmg_15_30, 0) as bld_dmg_15_30, coalesce(d.bld_dmg_30_plus, 0) as bld_dmg_30_plus,
+           coalesce(d.ability_dmg_15, 0) as ability_dmg_15, coalesce(d.item_dmg_15, 0) as item_dmg_15,
+           coalesce(d.autoattack_dmg_15, 0) as autoattack_dmg_15, coalesce(d.summon_npc_dmg_15, 0) as summon_npc_dmg_15,
+           coalesce(tw.towers_lost_15, 0) as towers_down_15, tw.first_t1_fall_sec as first_enemy_t1_fall_sec,
+           t.win
+    from t
+    join lakehouse.stage.t1_c13_matches m on m.match_id = t.match_id
+    join md on md.match_id = t.match_id
+    left join dmg d on d.match_id = t.match_id and d.is_radiant = t.is_radiant
+    left join tw on tw.match_id = t.match_id and tw.building_side = case when t.is_radiant then 'dire' else 'radiant' end
+)
+select a.match_id, a.is_radiant, a.match_hour, a.duration_min, a.strong_pushers, a.avg_rank_tier,
+       a.anonymous_players, a.helm_players,
+       a.bld_dmg_10, a.bld_dmg_15, round(a.bld_hp_units_15, 2) as bld_hp_units_15, a.bld_dmg_15_30, a.bld_dmg_30_plus,
+       a.ability_dmg_15, a.item_dmg_15, a.autoattack_dmg_15, a.summon_npc_dmg_15,
+       a.towers_down_15, a.first_enemy_t1_fall_sec,
+       a.bld_dmg_15 - b.bld_dmg_15 as bld_dmg_15_diff,
+       a.towers_down_15 - b.towers_down_15 as towers_15_diff,
+       a.strong_pushers - b.strong_pushers as strong_pushers_diff,
+       a.team_net_worth, a.team_net_worth - b.team_net_worth as net_worth_end_diff,
+       a.win
+from s a
+join s b on b.match_id = a.match_id and b.is_radiant <> a.is_radiant",maleychenko_n,Малейченко Никита,2026-11-14 23:07:39.783797,['Команда 1'],"['mart', 'developer:Малейченко Никита', 'team:Команда 1']","['stage/t1_c13_building_falls', 'stage/t1_c13_matches', 'stage/t1_c13_players', 'stage/t1_c13_tower_hits']","Ранний пуш команд в кейсе 13 «Способности по башням»: урон по зданиям соперника до 10 и 15 минуты, башни соперника, снесённые к 15 минуте, время первой T1 соперника, состав команды и разница с соперником. Зерно: матч × сторона. Только матчи с данными о падении башен, без Turbo. win: 1 = победа команды. Исправленная версия: матчи без падений не выбрасываются по стороне."
