@@ -120,6 +120,14 @@ OpenLineage-события ──► Marquez          Метаданные и и
 - [materials/](<materials/>) — исходные материалы буткэмпа, ссылка на каждый файл в разделе ниже и в [bootcamp_materials_links.md](<docs/bootcamp_materials_links.md>)
 - [jupyter/](<jupyter/>) — учебные ноутбуки: [examples/](<jupyter/examples/>), [practice/](<jupyter/practice/>), [spark_practice/](<jupyter/spark_practice/>); [tools/](<tools/>) — вспомогательный скрипт запуска SQL ([README.md](<tools/README.md>))
 
+## Артефакты для решения кейсов
+
+- [Источники (PostgreSQL, MongoDB): описание полей и таблиц](<materials/Источники. Описание полей таблиц.md>)
+- [Кейсы с гипотезами](<materials/analytics_cases.md>)
+- [Детальное описание задачи](<materials/Буткэмп Dota 2 — практическая работа.docx>) и [критерии оценки проекта](<materials/Критерии оценки проекта.xlsx>)
+- [Критерии оценки проекта (баллы)](<materials/Критерии оценки проекта.xlsx>)
+- [Шаблон презентации для защиты](<materials/Шаблон презентации.pptx>)
+
 ## Материалы буткэмпа
 
 Папка [`materials/`](materials/), а в ней по файлам:
