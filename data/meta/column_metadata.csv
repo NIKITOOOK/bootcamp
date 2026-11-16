@@ -1,0 +1,148 @@
+source_name,column_name,column_type,description
+stage__t1_c13_matches,match_id,bigint,Уникальный ID матча (Valve)
+stage__t1_c13_matches,start_time,timestamp(3),Unix timestamp начала
+stage__t1_c13_matches,match_hour,timestamp(3),
+stage__t1_c13_matches,duration_sec,integer,
+stage__t1_c13_matches,duration_min,"decimal(13, 1)",
+stage__t1_c13_matches,game_mode,integer,ID режима игры
+stage__t1_c13_matches,radiant_win,boolean,true если Radiant победил
+stage__t1_c13_matches,loaded_at,timestamp(6) with time zone,Время вставки в БД
+stage__t1_c13_players,match_id,bigint,Уникальный ID матча (Valve)
+stage__t1_c13_players,player_slot,integer,"Слот (0-127 Radiant, 128-255 Dire)"
+stage__t1_c13_players,hero_id,integer,ID героя
+stage__t1_c13_players,hero_name,varchar,Имя героя
+stage__t1_c13_players,attack_type,varchar,Тип атаки: Melee или Ranged
+stage__t1_c13_players,is_radiant,boolean,true если в Radiant
+stage__t1_c13_players,win,integer,true если выиграл матч
+stage__t1_c13_players,net_worth,integer,Net worth
+stage__t1_c13_players,rank_tier,integer,"Ранг игрока (1-80), NULL если не определён"
+stage__t1_c13_players,is_anonymous,integer,1 если анонимный профиль (account_id 4294967295)
+stage__t1_c13_players,tower_damage,integer,Урон башням
+stage__t1_c13_players,duration_sec,integer,"Длительность матча, сек"
+stage__t1_c13_players,pos_proxy,bigint,Позиция по net worth внутри команды (1 = самый богатый)
+stage__t1_c13_players,tdpm,double,Урон башням в минуту
+stage__t1_c13_players,has_helm,integer,1 если игрок покупал Helm of the Dominator или Overlord
+stage__t1_c13_players,helm_time_sec,integer,"Время первой покупки шлема, сек"
+stage__t1_c13_players,is_strong_pusher,integer,1 если герой из списка сильных пушеров
+stage__t1_c13_players,pusher_allies,bigint,Число сильных пушеров среди союзников
+stage__t1_c13_players,team_tower_damage,bigint,Суммарный урон башням команды
+stage__t1_c13_players,dmg_share,double,Доля игрока в уроне башням своей команды
+mart__t1_c13_team_early_push_v2,match_id,bigint,Уникальный ID матча (Valve)
+mart__t1_c13_team_early_push_v2,is_radiant,boolean,true если в Radiant
+mart__t1_c13_team_early_push_v2,match_hour,timestamp(6) with time zone,
+mart__t1_c13_team_early_push_v2,duration_min,"decimal(13, 1)",
+mart__t1_c13_team_early_push_v2,strong_pushers,bigint,
+mart__t1_c13_team_early_push_v2,avg_rank_tier,double,
+mart__t1_c13_team_early_push_v2,anonymous_players,bigint,
+mart__t1_c13_team_early_push_v2,helm_players,bigint,
+mart__t1_c13_team_early_push_v2,bld_dmg_10,bigint,
+mart__t1_c13_team_early_push_v2,bld_dmg_15,bigint,
+mart__t1_c13_team_early_push_v2,bld_hp_units_15,double,
+mart__t1_c13_team_early_push_v2,bld_dmg_15_30,bigint,
+mart__t1_c13_team_early_push_v2,bld_dmg_30_plus,bigint,
+mart__t1_c13_team_early_push_v2,ability_dmg_15,bigint,
+mart__t1_c13_team_early_push_v2,item_dmg_15,bigint,
+mart__t1_c13_team_early_push_v2,autoattack_dmg_15,bigint,
+mart__t1_c13_team_early_push_v2,summon_npc_dmg_15,bigint,
+mart__t1_c13_team_early_push_v2,towers_down_15,bigint,
+mart__t1_c13_team_early_push_v2,first_enemy_t1_fall_sec,integer,
+mart__t1_c13_team_early_push_v2,bld_dmg_15_diff,bigint,
+mart__t1_c13_team_early_push_v2,towers_15_diff,bigint,
+mart__t1_c13_team_early_push_v2,strong_pushers_diff,bigint,
+mart__t1_c13_team_early_push_v2,team_net_worth,bigint,
+mart__t1_c13_team_early_push_v2,net_worth_end_diff,bigint,
+mart__t1_c13_team_early_push_v2,win,integer,true если выиграл матч
+stage__t1_c13_tower_hits,match_id,bigint,Уникальный ID матча (Valve)
+stage__t1_c13_tower_hits,hero_id,integer,ID героя
+stage__t1_c13_tower_hits,is_radiant,boolean,true если в Radiant
+stage__t1_c13_tower_hits,building_npc_id,integer,
+stage__t1_c13_tower_hits,building_type,varchar(9),
+stage__t1_c13_tower_hits,lane,varchar(4),
+stage__t1_c13_tower_hits,source_type,varchar(11),
+stage__t1_c13_tower_hits,source_id,varchar,
+stage__t1_c13_tower_hits,source_name,varchar,
+stage__t1_c13_tower_hits,ability_level,integer,
+stage__t1_c13_tower_hits,time_window,varchar(5),
+stage__t1_c13_tower_hits,hits,bigint,
+stage__t1_c13_tower_hits,damage,bigint,Количество урона
+stage__t1_c13_tower_hits,first_hit_sec,integer,
+stage__t1_c13_tower_hits,last_hit_sec,integer,
+stage__t1_c13_building_falls,match_id,bigint,Уникальный ID матча (Valve)
+stage__t1_c13_building_falls,building_side,varchar(7),
+stage__t1_c13_building_falls,building_code,integer,
+stage__t1_c13_building_falls,building_type,varchar(9),
+stage__t1_c13_building_falls,lane,varchar(4),
+stage__t1_c13_building_falls,npc_id,integer,
+stage__t1_c13_building_falls,available_from_sec,integer,
+stage__t1_c13_building_falls,fall_time_sec,integer,
+stage__t1_c13_building_falls,fall_time_source,varchar(15),
+stage__t1_c13_building_falls,fell_by_15,integer,
+stage__t1_c13_building_falls,exposure_sec,integer,
+mart__t1_c13_hero_tower_damage,hero_id,integer,ID героя
+mart__t1_c13_hero_tower_damage,hero_name,varchar,Имя героя
+mart__t1_c13_hero_tower_damage,attack_type,varchar,Тип атаки: Melee или Ranged
+mart__t1_c13_hero_tower_damage,pos_proxy,integer,Позиция по net worth внутри команды (1 = самый богатый)
+mart__t1_c13_hero_tower_damage,pusher_allies_grp,varchar(2),
+mart__t1_c13_hero_tower_damage,games,bigint,
+mart__t1_c13_hero_tower_damage,tdpm_avg,double,
+mart__t1_c13_hero_tower_damage,tdpm_median,double,
+mart__t1_c13_hero_tower_damage,tdpm_expected,double,
+mart__t1_c13_hero_tower_damage,tdpm_index,double,
+mart__t1_c13_hero_tower_damage,tdpm_index_avg,double,
+mart__t1_c13_hero_tower_damage,dmg_share_avg,double,
+mart__t1_c13_hero_tower_damage,win_rate,double,
+mart__t1_c13_hero_tower_damage,helm_rate,double,
+mart__t1_c13_hero_tower_damage,share_phase_0_15,double,
+mart__t1_c13_hero_tower_damage,share_phase_15_30,double,
+mart__t1_c13_hero_tower_damage,share_phase_30_plus,double,
+mart__t1_c13_hero_tower_damage,share_ability,double,
+mart__t1_c13_hero_tower_damage,share_item,double,
+mart__t1_c13_hero_tower_damage,share_autoattack,double,
+mart__t1_c13_hero_tower_damage,share_summon_npc,double,
+mart__t1_c13_hero_tower_damage,hp_units_per_game,double,
+mart__t1_c13_team_early_push,match_id,bigint,Уникальный ID матча (Valve)
+mart__t1_c13_team_early_push,is_radiant,boolean,true если в Radiant
+mart__t1_c13_team_early_push,match_hour,timestamp(6) with time zone,
+mart__t1_c13_team_early_push,duration_min,"decimal(13, 1)",
+mart__t1_c13_team_early_push,strong_pushers,bigint,
+mart__t1_c13_team_early_push,avg_rank_tier,double,
+mart__t1_c13_team_early_push,anonymous_players,bigint,
+mart__t1_c13_team_early_push,helm_players,bigint,
+mart__t1_c13_team_early_push,bld_dmg_10,bigint,
+mart__t1_c13_team_early_push,bld_dmg_15,bigint,
+mart__t1_c13_team_early_push,bld_hp_units_15,double,
+mart__t1_c13_team_early_push,bld_dmg_15_30,bigint,
+mart__t1_c13_team_early_push,bld_dmg_30_plus,bigint,
+mart__t1_c13_team_early_push,ability_dmg_15,bigint,
+mart__t1_c13_team_early_push,item_dmg_15,bigint,
+mart__t1_c13_team_early_push,autoattack_dmg_15,bigint,
+mart__t1_c13_team_early_push,summon_npc_dmg_15,bigint,
+mart__t1_c13_team_early_push,towers_down_15,bigint,
+mart__t1_c13_team_early_push,first_enemy_t1_fall_sec,integer,
+mart__t1_c13_team_early_push,bld_dmg_15_diff,bigint,
+mart__t1_c13_team_early_push,towers_15_diff,bigint,
+mart__t1_c13_team_early_push,strong_pushers_diff,bigint,
+mart__t1_c13_team_early_push,team_net_worth,bigint,
+mart__t1_c13_team_early_push,net_worth_end_diff,bigint,
+mart__t1_c13_team_early_push,win,integer,true если выиграл матч
+mart__t1_c13_ability_building_damage,hero_id,integer,ID героя
+mart__t1_c13_ability_building_damage,hero_name,varchar,Имя героя
+mart__t1_c13_ability_building_damage,source_type,varchar,
+mart__t1_c13_ability_building_damage,source_group,varchar(10),
+mart__t1_c13_ability_building_damage,source_id,varchar,
+mart__t1_c13_ability_building_damage,source_name,varchar,
+mart__t1_c13_ability_building_damage,ability_level,integer,
+mart__t1_c13_ability_building_damage,building_type,varchar,
+mart__t1_c13_ability_building_damage,time_window,varchar,
+mart__t1_c13_ability_building_damage,match_phase,varchar(5),
+mart__t1_c13_ability_building_damage,is_talent,integer,
+mart__t1_c13_ability_building_damage,matches,bigint,
+mart__t1_c13_ability_building_damage,hits,bigint,
+mart__t1_c13_ability_building_damage,damage,bigint,Количество урона
+mart__t1_c13_ability_building_damage,damage_hp_units,double,
+mart__t1_c13_ability_building_damage,dmg_per_hit,double,
+mart__t1_c13_ability_building_damage,dmg_per_match,double,
+mart__t1_c13_ability_building_damage,exposure_sec,bigint,
+mart__t1_c13_ability_building_damage,dmg_per_exposure_min,double,
+mart__t1_c13_ability_building_damage,ratio_to_t3,double,
+mart__t1_c13_ability_building_damage,share_of_hero_damage,double,
