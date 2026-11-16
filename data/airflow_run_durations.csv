@@ -1,0 +1,9 @@
+dag,runs_success,runs_failed,avg_sec,min_sec,max_sec,last_success_utc
+stage__t1_c13_matches,10,0,764,54,1785,2026-11-15T02:16
+stage__t1_c13_players,10,0,558,49,805,2026-11-15T02:25
+stage__t1_c13_building_falls,6,0,522,49,722,2026-11-15T02:25
+stage__t1_c13_tower_hits,8,0,1280,1023,2366,2026-11-15T02:23
+mart__t1_c13_hero_tower_damage,6,0,196,38,283,2026-11-15T02:30
+mart__t1_c13_team_early_push,6,0,204,39,294,2026-11-15T02:30
+mart__t1_c13_team_early_push_v2,3,0,168,40,235,2026-11-15T02:29
+mart__t1_c13_ability_building_damage,5,0,708,578,903,2026-11-15T02:14
