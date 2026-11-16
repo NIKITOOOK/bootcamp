@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lineage и управление данными, кейс 13</title>
+<style>
+:root{--bg:#f7f6f2;--fg:#1d1d1b;--mute:#6b6a64;--card:#fff;--line:#d8d6cc;--raw:#8a8f98;--stage:#3b6fb6;--mart:#2e8b57;--red:#c0392b;--green:#2e8b57}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15161a;--fg:#ecebe6;--mute:#a3a29b;--card:#1f2026;--line:#3a3b42}}
+:root[data-theme="dark"]{--bg:#15161a;--fg:#ecebe6;--mute:#a3a29b;--card:#1f2026;--line:#3a3b42}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;padding:0 max(16px,env(safe-area-inset-left,0px)) 24px max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:22px;margin:18px 0 6px}h2{font-size:17px;margin:24px 0 8px}p{margin:6px 0}
+.mute{color:var(--mute);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0}
+table{border-collapse:collapse;width:100%;font-size:13px;display:block;overflow-x:auto}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.tag{display:inline-block;border-radius:6px;padding:1px 7px;font-size:12px;color:#fff}
+.g{background:var(--green)}.r{background:var(--red)}.raw{background:var(--raw)}.st{background:var(--stage)}.mt{background:var(--mart)}
+svg{max-width:100%;height:auto}
+</style></head><body>
+<h1>Как данные идут от источника до дашборда</h1>
+<p class="mute">Кейс 13 «Способности по башням», Команда 1. Схема из Marquez (lineage), 14.11.2026.</p>
+
+<h2>1. Lineage: RAW → STAGE → MART → дашборд</h2>
+<div class="card">
+<svg viewBox="0 0 760 330" role="img" aria-label="Схема потоков">
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8a8f98"/></marker></defs>
+<g font-size="11" fill="currentColor">
+<rect x="10" y="20" width="170" height="26" rx="5" fill="#8a8f98"/><text x="20" y="37" fill="#fff">pg__matches / match_players</text>
+<rect x="10" y="60" width="170" height="26" rx="5" fill="#8a8f98"/><text x="20" y="77" fill="#fff">mongo__tower_damage_events</text>
+<rect x="10" y="100" width="170" height="26" rx="5" fill="#8a8f98"/><text x="20" y="117" fill="#fff">mongo__tower_death_events</text>
+<rect x="10" y="140" width="170" height="26" rx="5" fill="#8a8f98"/><text x="20" y="157" fill="#fff">mongo__building_events</text>
+<rect x="10" y="180" width="170" height="26" rx="5" fill="#8a8f98"/><text x="20" y="197" fill="#fff">mongo__ability_learn_events</text>
+<rect x="10" y="220" width="170" height="26" rx="5" fill="#8a8f98"/><text x="20" y="237" fill="#fff">mongo__purchase_events</text>
+<rect x="230" y="20" width="160" height="26" rx="5" fill="#3b6fb6"/><text x="240" y="37" fill="#fff">t1_c13_matches</text>
+<rect x="230" y="70" width="160" height="26" rx="5" fill="#3b6fb6"/><text x="240" y="87" fill="#fff">t1_c13_players</text>
+<rect x="230" y="120" width="160" height="26" rx="5" fill="#3b6fb6"/><text x="240" y="137" fill="#fff">t1_c13_tower_hits</text>
+<rect x="230" y="170" width="160" height="26" rx="5" fill="#3b6fb6"/><text x="240" y="187" fill="#fff">t1_c13_building_falls</text>
+<rect x="450" y="40" width="160" height="26" rx="5" fill="#2e8b57"/><text x="460" y="57" fill="#fff">hero_tower_damage (H1)</text>
+<rect x="450" y="100" width="160" height="26" rx="5" fill="#2e8b57"/><text x="460" y="117" fill="#fff">ability_building_damage (H2)</text>
+<rect x="450" y="160" width="160" height="26" rx="5" fill="#2e8b57"/><text x="460" y="177" fill="#fff">team_early_push_v2 (H3)</text>
+<rect x="630" y="100" width="120" height="26" rx="5" fill="#6b6a64"/><text x="640" y="117" fill="#fff">Superset, дашборд</text>
+<path d="M180,33 L230,33" stroke="#8a8f98" marker-end="url(#a)"/><path d="M180,73 L230,130" stroke="#8a8f98" marker-end="url(#a)"/><path d="M180,113 L230,183" stroke="#8a8f98" marker-end="url(#a)"/><path d="M180,153 L230,183" stroke="#8a8f98" marker-end="url(#a)"/><path d="M180,193 L230,130" stroke="#8a8f98" marker-end="url(#a)"/><path d="M180,233 L230,85" stroke="#8a8f98" marker-end="url(#a)"/>
+<path d="M390,33 L450,53" stroke="#8a8f98" marker-end="url(#a)"/><path d="M390,83 L450,53" stroke="#8a8f98" marker-end="url(#a)"/><path d="M390,133 L450,113" stroke="#8a8f98" marker-end="url(#a)"/><path d="M390,183 L450,173" stroke="#8a8f98" marker-end="url(#a)"/><path d="M390,33 L450,173" stroke="#8a8f98" marker-end="url(#a)"/>
+<path d="M610,113 L630,113" stroke="#8a8f98" marker-end="url(#a)"/><path d="M610,173 L630,125" stroke="#8a8f98" marker-end="url(#a)"/><path d="M610,53 L630,105" stroke="#8a8f98" marker-end="url(#a)"/>
+</g></svg>
+<p class="mute">Слева — источники (RAW, серый). В центре — очищенные таблицы (STAGE, синий). Справа — витрины под гипотезы (MART, зелёный) и дашборд. Стрелки = зависимости. Запуск каждый час по датасетам.</p>
+</div>
+
+<h2>2. Гранулярность: одна строка = что</h2>
+<div class="card"><table>
+<tr><th>Объект</th><th>Одна строка</th><th>Ключ</th><th>Слой</th></tr>
+<tr><td>t1_c13_matches</td><td>матч</td><td>match_id</td><td>STAGE</td></tr>
+<tr><td>t1_c13_players</td><td>игрок в матче</td><td>match_id + player_slot</td><td>STAGE</td></tr>
+<tr><td>t1_c13_tower_hits</td><td>герой × матч × источник × здание × окно времени</td><td>match_id, hero_id, source, building, window</td><td>STAGE</td></tr>
+<tr><td>t1_c13_building_falls</td><td>здание × матч (падение)</td><td>match_id, building_side, building_code</td><td>STAGE</td></tr>
+<tr><td>hero_tower_damage</td><td>герой × позиция × пушеры рядом</td><td>hero_id, pos, group</td><td>MART (H1)</td></tr>
+<tr><td>ability_building_damage</td><td>герой × способность × здание × окно</td><td>hero, source, building, window</td><td>MART (H2)</td></tr>
+<tr><td>team_early_push_v2</td><td>матч × сторона</td><td>match_id + is_radiant</td><td>MART (H3)</td></tr>
+</table></div>
+
+<h2>3. Управление данными: зелёная и красная зоны</h2>
+<div class="card">
+<p><span class="tag g">Зелёная зона</span> Обезличенные данные матчей и событий. Можно использовать в аналитике и показывать в дашборде: матч, герой, урон, башни, время, сторона.</p>
+<p><span class="tag r">Красная зона</span> Идентификаторы аккаунтов (account_id, steam_account_id) и анонимные профили. В витринах их нет. Анонимный профиль (4294967295) исключён из расчётов по игрокам.</p>
+<p class="mute">Правило: в MART попадают только агрегаты и идентификаторы матча и героя. Доступ к RAW только у дата-инженеров.</p>
+</div>
+
+<h2>4. Паспорт витрин (SLA, обновление, глубина)</h2>
+<div class="card"><table>
+<tr><th>Параметр</th><th>Значение</th></tr>
+<tr><td>Источник</td><td>PostgreSQL (matches, match_players), MongoDB (события башен, зданий, покупок, способностей)</td></tr>
+<tr><td>Частота обновления</td><td>каждый час по датасетам (RAW загружается раз в час, STAGE и MART пересчитываются после него)</td></tr>
+<tr><td>Глубина хранения</td><td>RAW: вся история, которую нам отдали; источник чистится каждые 4 часа. Витрины: текущий патч (14–15.10.2026)</td></tr>
+<tr><td>Актуальность</td><td>T-0 с задержкой в 1–2 часа от загрузки RAW</td></tr>
+<tr><td>SLA</td><td>Цель: витрина готова до следующего часа после обновления RAW. Фактическое время запусков: от 40 секунд до 10–15 минут, с очередью Spark до 30 минут. Замер ведётся в Airflow</td></tr>
+<tr><td>Объём</td><td>STAGE tower_hits: около 13,5 млн строк; matches: 219 495 матчей</td></tr>
+<tr><td>Прирост</td><td>RAW вырос с 317 657 до 324 348 матчей за день (около 6 700 матчей)</td></tr>
+<tr><td>ПДн</td><td>нет; есть анонимные игровые идентификаторы (красная зона, в MART не выводятся)</td></tr>
+</table></div>
+
+<h2>5. Контроль качества и просадка</h2>
+<div class="card"><table>
+<tr><th>Проверка</th><th>Ожидание</th><th>Действие при провале</th></tr>
+<tr><td>Полнота: число матчей STAGE к RAW после фильтров</td><td>равно</td><td>стоп</td></tr>
+<tr><td>Просадка числа строк к предыдущему запуску</td><td>не более 30%</td><td>предупреждение</td></tr>
+<tr><td>Ключ уникален (матч × сторона)</td><td>да</td><td>стоп</td></tr>
+<tr><td>Две строки на матч в team_early_push_v2</td><td>да (437 610 = 2 × 218 805)</td><td>стоп</td></tr>
+<tr><td>Пропуски в победе и числе башен</td><td>нет</td><td>стоп</td></tr>
+</table></div>
+<p class="mute">Ранее INNER JOIN молча выкинул 18 790 матчей. Теперь эта проверка поймала бы ошибку.</p>
+</body></html>
